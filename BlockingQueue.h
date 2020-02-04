@@ -4,43 +4,44 @@
  *  Created on: Nov 9, 2016
  *      Author: msoderen
  */
-
+ 
 #ifndef SRC_ALLADTCOPRA_COMMON_BLOCKINGQUEUE_H_
 #define SRC_ALLADTCOPRA_COMMON_BLOCKINGQUEUE_H_
 
-
-#include <iostream>
-#include <vector>
 #include <queue>
 #include <condition_variable>
-#include <assert.h>
 
-#define MAX_CAPACITY 20
+constexpr size_t MAX_CAPACITY = 20;
+
 
 template<typename T>
-class BlockingQueue{
-    public:
-        BlockingQueue() :mtx(), full_(), empty_(), capacity_(MAX_CAPACITY) { }
-        void Put(const T& task);
-        T Take();
-        T Front();
-        T Back();
-        size_t Size();
-        bool Empty();
-        void SetCapacity(const size_t capacity);
-    private:
-        BlockingQueue(const BlockingQueue& rhs);
-        BlockingQueue& operator= (const BlockingQueue& rhs);
+class BlockingQueue
+{
+public:
+    BlockingQueue(size_t capacity = MAX_CAPACITY) : capacity_(capacity) {}
+    
+    void put(const T& item);
+    T take();
+    
+    T front();
+    size_t size();
+    void setCapacity(const size_t capacity);
 
-    private:
-        mutable std::mutex mtx;
-        std::condition_variable full_;
-        std::condition_variable empty_;
-        std::queue<T> queue_;
-        size_t capacity_;
+    // conditions
+    bool empty();
+    bool full();
+
+private:
+    BlockingQueue(const BlockingQueue& rhs) = delete;
+    BlockingQueue& operator= (const BlockingQueue& rhs) = delete;
+
+private:
+    mutable std::mutex mtx_;
+    std::condition_variable cv_full_;
+    std::condition_variable cv_empty_;
+    std::queue<T> queue_;
+    size_t capacity_;
 };
 
 
-
-
-#endif /* SRC_ALLADTCOPRA_COMMON_BLOCKINGQUEUE_H_ */
+#endif

@@ -6,71 +6,74 @@
  */
 
 #include "BlockingQueue.h"
-#include "Structures.h"
+
+#include <functional>
+#include <assert.h>
+
 
 template<typename T>
-void BlockingQueue<T>::Put(const T& task){
-    std::unique_lock<std::mutex> lock(mtx);
-    while(queue_.size() == capacity_){
-        full_.wait(lock );
-    }
+void BlockingQueue<T>::put(const T& item)
+{
+    std::unique_lock<std::mutex> lk(mtx_);
+    cv_full_.wait(lk, std::bind(&BlockingQueue<T>::queueFull, this));
+    
     assert(queue_.size() < capacity_);
-    queue_.push(task);
-    empty_.notify_all();
+    queue_.push(item);
+    cv_empty_.notify_all();
 }
 
 template<typename T>
-T BlockingQueue<T>::Take(){
-    std::unique_lock<std::mutex> lock(mtx);
-    while(queue_.empty()){
-        empty_.wait(lock );
-    }
+T BlockingQueue<T>::take()
+{
+    std::unique_lock<std::mutex> lk(mtx_);
+    cv_empty_.wait(lk, std::bind(&BlockingQueue<T>::empty, this));
+
     assert(!queue_.empty());
     T front(queue_.front());
     queue_.pop();
-    full_.notify_all();
+    cv_full_.notify_all();
     return front;
 }
 
 template<typename T>
-size_t BlockingQueue<T>::Size(){
-    std::lock_guard<std::mutex> lock(mtx);
+size_t BlockingQueue<T>::size()
+{
+    std::lock_guard<std::mutex> lock(mtx_);
     return queue_.size();
 }
 
 template<typename T>
-T BlockingQueue<T>::Front(){
-    std::unique_lock<std::mutex> lock(mtx);
-    while(queue_.empty()){
-        empty_.wait(lock );
-    }
+T BlockingQueue<T>::front()
+{
+    std::unique_lock<std::mutex> lk(mtx_);
+    cv_empty_.wait(lk, std::bind(&BlockingQueue<T>::empty, this));
+
     assert(!queue_.empty());
     T front(queue_.front());
     return front;
 }
 
-template<typename T>
-T BlockingQueue<T>::Back(){
-    std::unique_lock<std::mutex> lock(mtx);
-    while(queue_.empty()){
-        empty_.wait(lock);
-    }
-    assert(!queue_.empty());
-    T back(queue_.back());
-    return back;
-}
 
+/// conditions
 template<typename T>
-bool BlockingQueue<T>::Empty(){
-    std::unique_lock<std::mutex> lock(mtx);
+bool BlockingQueue<T>::empty()
+{
+    std::unique_lock<std::mutex> lock(mtx_);
     return queue_.empty();
 }
 
 template<typename T>
-void BlockingQueue<T>::SetCapacity(const size_t capacity){
+bool BlockingQueue<T>::full()
+{
+    return queue_.size() == capacity_;
+}
+
+
+template<typename T>
+void BlockingQueue<T>::setCapacity(const size_t capacity){
     capacity_ = (capacity > 0 ? capacity : MAX_CAPACITY);
 }
 
-template class BlockingQueue<QueueElement*>;
-template class BlockingQueue<Unstable*>;
+
+// template class BlockingQueue<QueueElement*>;
 template class BlockingQueue<std::string>;
